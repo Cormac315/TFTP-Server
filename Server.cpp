@@ -58,7 +58,6 @@ int PORT = 69; // 服务器端口
 #define TIMEOUT 5 // 超时时间（秒）
 
 void commandThreadFunction(); // 命令线程函数
-void closeConsoleWindow();
 
 
 // TFTP操作码

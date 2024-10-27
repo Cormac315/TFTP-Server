@@ -268,13 +268,10 @@ void main::OnCheckUpdateButtonClick(wxCommandEvent& event)
 		wxMessageBox(_("版本检查程序Version.exe不存在"), _("错误"), wxOK | wxICON_ERROR);
 		return;
 	}
-    std::string version = "1.0"; // 当前版本号
-    std::string command = "Version.exe" + version;
-    try {
-        system(command.c_str());
-    } catch (const std::exception& e) {
-        wxMessageBox(_("版本检查程序Version.exe已损坏"), _("错误"), wxOK | wxICON_ERROR);
-    }
+    std::string version = "1.1"; // 当前版本号
+    std::string command = "Version.exe " + version;
+    system(command.c_str());
+    
 }
 
 // 服务器状态按钮
@@ -661,7 +658,7 @@ wxIMPLEMENT_APP(MyApp);
 
 bool MyApp::OnInit()
 {
-	mainFrame = new main(nullptr, wxID_ANY, _("TFTP服务器面板 by Cormac@HUST CSE"));
+	mainFrame = new main(nullptr, wxID_ANY, _("TFTP服务器 by Cormac@HUST CSE"));
 	mainFrame->Show(true);
 	return true;
 }

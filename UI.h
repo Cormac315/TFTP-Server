@@ -63,7 +63,7 @@ public:
 	void UpdateClientStatus(int row, const std::string& status, const std::string& throughput = "", int timeoutCount = 0);
 	void TableStatus(int row, bool success);
 
-	main(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("TFTP服务器面板 by Cormac"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(1225, 600), long style = wxDEFAULT_FRAME_STYLE | wxTAB_TRAVERSAL);
+	main(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("TFTP服务器 by Cormac"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(1225, 600), long style = wxDEFAULT_FRAME_STYLE | wxTAB_TRAVERSAL);
 
 	~main();
 
