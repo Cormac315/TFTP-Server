@@ -23,6 +23,8 @@
 #include <wx/checkbox.h>
 #include <wx/dialog.h>
 #include <wx/app.h>
+#include <wx/msgdlg.h>
+#include <wx/taskbar.h>
 ///////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,6 +50,7 @@ public:
 	int currentRow = 0; // 表格当前行索引
 
 	// 事件函数
+	void OnClose(wxCloseEvent& event); // 关闭主窗口
 	void OnSettingsButtonClick(wxCommandEvent& event);
 	void OnCheckUpdateButtonClick(wxCommandEvent& event);
 	void OnServerSwitch(wxCommandEvent& event);
@@ -134,6 +137,19 @@ extern settings* settingsWindow;
 extern setting_saved_information* settingsSavedWindow;
 
 extern main* g_mainFrame; // 主窗口
+
+// 托盘图标
+class MyTaskBarIcon : public wxTaskBarIcon
+{
+public:
+	MyTaskBarIcon() {}
+	void OnLeftButtonDClick(wxTaskBarIconEvent&);
+	void OnMenuRestore(wxCommandEvent&);
+	void OnMenuExit(wxCommandEvent&);
+	virtual wxMenu* CreatePopupMenu() override;
+};
+
+
 
 
 class MyApp : public wxApp

@@ -11,12 +11,16 @@
 #include "Server.h"
 #include "shared.h"
 #include "api.h"
+#include <wx/msgdlg.h>
+#include <wx/taskbar.h>
+#include <wx/menu.h>
 ///////////////////////////////////////////////////////////////////////////
 // 全局窗口指针
 main* g_mainFrame = nullptr;
 main* mainFrame = nullptr;
 settings* settingsWindow = nullptr;
 setting_saved_information* settingsSavedWindow = nullptr;
+MyTaskBarIcon* taskBarIcon = nullptr;
 ///////////////////////////////////////////////////////////////////////////
 // 服务器全局变量
 wxString s_MaxThreadCount = wxString::Format(wxT("%d"), MaxThreadCount);
@@ -29,8 +33,14 @@ bool is_console_mode = false;
 wxString s_PORT = wxString::Format(wxT("%d"), PORT);
 //wxString s_TIMEOUT = wxString::Format(wxT("%d"), TIMEOUT); // 1.1更新
 int TableRows = 16;
-
-
+bool Remember_Minimize = false;
+///////////////////////////////////////////////////////////////////////////
+enum
+{
+	PU_RESTORE = 10001,
+		PU_EXIT,
+};
+///////////////////////////////////////////////////////////////////////////
 main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
 	g_mainFrame = this; // 初始化全局指针
@@ -132,6 +142,7 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 
 	information_table = new wxGrid(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0);
 
+
 	// Grid
 	information_table->CreateGrid(TableRows, 6);
 	information_table->EnableEditing(false);
@@ -142,10 +153,10 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 
 	// Columns
 	information_table->SetColSize(0, 100);
-	information_table->SetColSize(1, 148);
+	information_table->SetColSize(1, 150);
 	information_table->SetColSize(2, 155);
 	information_table->SetColSize(3, 185);
-	information_table->SetColSize(4, 109);
+	information_table->SetColSize(4, 110);
 	information_table->SetColSize(5, 70);
 	information_table->EnableDragColMove(false);
 	information_table->EnableDragColSize(true);
@@ -173,7 +184,7 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 	information_grid->Add(information_table, 0, wxALL |wxEXPAND, 5);
 
 
-	main_grid->Add(information_grid, 0,wxEXPAND, 5);
+	main_grid->Add(information_grid, 0 , wxALL | wxEXPAND, 5);
 
 
 	this->SetSizer(main_grid);
@@ -190,6 +201,7 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 	version->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(main::OnVersionClick), NULL, this);
 	version->Bind(wxEVT_ENTER_WINDOW, &main::OnMouseEnter, this);
 	version->Bind(wxEVT_LEAVE_WINDOW, &main::OnMouseLeave, this);
+	this->Bind(wxEVT_CLOSE_WINDOW, &main::OnClose, this); // 关闭窗口事件
 	loadSettings("settings.conf"); // 读取配置文件
 }
 
@@ -397,7 +409,44 @@ void main::OnMouseLeave(wxMouseEvent& event)
 	event.Skip();
 }
 
+void main::OnClose(wxCloseEvent& event)
+{
+	int response;
+	// 询问用户是否最小化到托盘
+	if (Remember_Minimize) response = wxID_YES;
+	else {
+		wxMessageDialog dialog(this, _("如果服务器已开启，这将使其在后台运行。\n选择\"是\"之后，本次运行都将采取最小化到托盘。"), _("是否最小化到托盘？"), wxYES_NO | wxCANCEL | wxICON_QUESTION);
+		response = dialog.ShowModal();
+	}
 
+	if (response == wxID_YES)
+	{
+		Remember_Minimize = true;
+		if (!taskBarIcon)
+		{
+			taskBarIcon = new MyTaskBarIcon();
+			wxIcon icon;
+			icon.LoadFile("./assets/ShortCut.ico", wxBITMAP_TYPE_ICO);
+			taskBarIcon->SetIcon(icon, _("TFTP服务器"));
+
+			// 绑定托盘图标的事件
+			taskBarIcon->Bind(wxEVT_TASKBAR_LEFT_DCLICK, &MyTaskBarIcon::OnLeftButtonDClick, taskBarIcon);
+			taskBarIcon->Bind(wxEVT_MENU, &MyTaskBarIcon::OnMenuRestore, taskBarIcon, PU_RESTORE);
+			taskBarIcon->Bind(wxEVT_MENU, &MyTaskBarIcon::OnMenuExit, taskBarIcon, PU_EXIT);
+		}
+		this->Hide();
+	}
+	else if (response == wxID_NO)
+	{
+		if (running) wxMessageBox("请先关闭服务器", "错误", wxICON_ERROR);
+		else {
+			taskBarIcon->Destroy();
+			Destroy();
+			exit(0);
+		}
+	}
+	// 如果用户选择取消，则不执行任何操作
+}
 
 
 main::~main()
@@ -650,6 +699,49 @@ void setting_saved_information::SettingsSavedConfirmed(wxCommandEvent& event)
 
 setting_saved_information::~setting_saved_information()
 {
+}
+
+
+
+
+void MyTaskBarIcon::OnLeftButtonDClick(wxTaskBarIconEvent&)
+{
+	if (g_mainFrame)
+	{
+		g_mainFrame->Show(true);
+		g_mainFrame->Iconize(false);
+	}
+}
+
+void MyTaskBarIcon::OnMenuRestore(wxCommandEvent&)
+{
+	if (g_mainFrame)
+	{
+		g_mainFrame->Show(true);
+		g_mainFrame->Iconize(false);
+	}
+}
+
+void MyTaskBarIcon::OnMenuExit(wxCommandEvent&)
+{
+	if (running) {
+		wxMessageBox("请先关闭服务器", "错误", wxICON_ERROR);
+		return;
+	}
+	if (g_mainFrame)
+	{
+		g_mainFrame->Destroy();
+		this->Destroy();
+		exit(0);
+	}
+}
+
+wxMenu* MyTaskBarIcon::CreatePopupMenu()
+{
+	wxMenu* menu = new wxMenu;
+	menu->Append(PU_RESTORE, _("打开主面板"));
+	menu->Append(PU_EXIT, _("关闭程序"));
+	return menu;
 }
 
 
