@@ -540,21 +540,19 @@ private:
 		std::string filePath = path_join(ServerRootDirectory, filename);
 
 
-		// 检查文件是否已存在
-		std::ifstream existingFile(filePath);
-		if (existingFile) {
-			sendError(clientAddr, 6, "File already exists");
-			logMessage("客户端尝试写入一个已存在的文件：" + filename, clientAddr, 1);
-			closesocket(dataSock); // 关闭传输套接字
-			currentThreadCount--;
-			return;
-		}
-
 		// 文件写操作
 		std::ofstream file(filePath, mode == "netascii" ? std::ios::out : std::ios::binary);
 		if (!file.is_open()) {
-			logMessage("服务器无法创建文件，请使用管理员权限启动服务器", clientAddr, 1);
-			sendError(clientAddr, 2, "Cannot create file");
+			// 检查文件是否已存在
+			std::ifstream existingFile(filePath);
+			if (existingFile) {
+				sendError(clientAddr, 6, "File already exists");
+				logMessage("客户端尝试写入一个已存在的文件：" + filename, clientAddr, 1);
+			}
+			else {
+				sendError(clientAddr, 2, "Cannot create file");
+				logMessage("服务器无法创建文件，请使用管理员权限启动服务器", clientAddr, 1);
+			}
 			closesocket(dataSock); // 关闭传输套接字
 			currentThreadCount--;
 			return;
