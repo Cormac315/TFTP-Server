@@ -60,6 +60,7 @@ public:
 	void OnMouseEnter(wxMouseEvent& event);
 	void OnMouseLeave(wxMouseEvent& event);
 	void loadSettings(const std::string& configFilePath);
+	void OnServerIPChanged(wxCommandEvent& event);
 	
 	// 维护表格信息
 	void AddClientInfo(const std::string& ip, const std::string& file, const std::string& startTime);

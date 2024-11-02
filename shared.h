@@ -13,7 +13,9 @@ extern std::string error_log_dir; // 服务器日志目录
 extern bool is_console_mode; // 是否为控制台模式
 extern int PORT; // 服务器端口
 //extern int TIMEOUT; // 超时时间
+extern std::vector<std::pair<std::string, std::string>> interfaces; // 网卡信息
+extern int selectedInterfaceIdx; // 选择的网卡
 
-extern void CloseConsoleWindow();
+extern void CloseConsoleWindow(); // 关闭控制台窗口
 
 

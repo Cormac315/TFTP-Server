@@ -31,14 +31,16 @@ bool b_error_log_switch = error_log_switch;
 wxString s_error_log_dir = wxString::FromUTF8(error_log_dir.c_str());
 bool is_console_mode = false;
 wxString s_PORT = wxString::Format(wxT("%d"), PORT);
-//wxString s_TIMEOUT = wxString::Format(wxT("%d"), TIMEOUT); // 1.1更新
+//wxString s_TIMEOUT = wxString::Format(wxT("%d"), TIMEOUT); // 暂不可用
+int selectedInterfaceIdx = -1;
 int TableRows = 16;
 bool Remember_Minimize = false;
+std::vector<std::pair<std::string, std::string>> interfaces = GetNetworkInterfaces();
 ///////////////////////////////////////////////////////////////////////////
 enum
 {
-	PU_RESTORE = 10001,
-		PU_EXIT,
+	PU_RESTORE = 10001, // 恢复
+	PU_EXIT // 退出
 };
 ///////////////////////////////////////////////////////////////////////////
 main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
@@ -81,7 +83,7 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 	check_update = new wxButton(this, wxID_ANY, _("检查更新"), wxDefaultPosition, wxDefaultSize, 0);
 	buttons->Add(check_update, 0, wxALL | wxEXPAND, 5);
 
-	version = new wxStaticText(this, wxID_ANY, _("当前版本:1.1"), wxDefaultPosition, wxDefaultSize, 0);
+	version = new wxStaticText(this, wxID_ANY, _("当前版本:1.2"), wxDefaultPosition, wxDefaultSize, 0);
 	version->Wrap(-1);
 	version->SetForegroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT));
 
@@ -106,7 +108,6 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 	server_dir = new wxDirPickerCtrl(this, wxID_ANY, wxT("./File"), _("服务器目录"), wxDefaultPosition, wxDefaultSize, wxDIRP_DEFAULT_STYLE);
 	gSizer7->Add(server_dir, 0, wxALL | wxEXPAND, 5);
 
-
 	grid_server_dir->Add(gSizer7, 1, wxEXPAND, 5);
 
 	wxGridSizer* grid_sever_ip;
@@ -116,15 +117,21 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 	text_server_ip->Wrap(-1);
 	grid_sever_ip->Add(text_server_ip, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
 
-	wxString choice_server_ipChoices[] = { _("本地环回地址(127.0.0.1)"), _("本机公网ip") };
-	int choice_server_ipNChoices = sizeof(choice_server_ipChoices) / sizeof(wxString);
-	choice_server_ip = new wxChoice(this, wxID_ANY, wxPoint(-1, -1), wxDefaultSize, choice_server_ipNChoices, choice_server_ipChoices, 0);
+	selectedInterfaceIdx = 0;
+	if (interfaces.empty()) {
+		console_log->AppendText("读取网卡失败，使用默认接口");
+	}
+	interfaces.insert(interfaces.begin(),std::make_pair(std::string("Default"), std::string("All")));
+
+	wxArrayString choices;
+	for (const auto& iface : interfaces) {
+		choices.Add(wxString::FromUTF8(iface.first + " - " + iface.second));
+	}
+	choice_server_ip = new wxChoice(this, wxID_ANY, wxPoint(-1, -1), wxDefaultSize, choices, 0);
 	choice_server_ip->SetSelection(0);
 	grid_sever_ip->Add(choice_server_ip, 0, wxALL | wxEXPAND, 5);
 
-
 	grid_server_dir->Add(grid_sever_ip, 1, wxEXPAND, 5);
-
 
 	main_grid->Add(grid_server_dir, 1, wxEXPAND, 5);
 
@@ -133,7 +140,6 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 
 	console_log = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
 	console_log_grid->Add(console_log, 0, wxALL | wxEXPAND, 5);
-
 
 	main_grid->Add(console_log_grid, 1, wxEXPAND, 5);
 
@@ -201,6 +207,7 @@ main::main(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint
 	version->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(main::OnVersionClick), NULL, this);
 	version->Bind(wxEVT_ENTER_WINDOW, &main::OnMouseEnter, this);
 	version->Bind(wxEVT_LEAVE_WINDOW, &main::OnMouseLeave, this);
+	choice_server_ip->Connect(wxEVT_CHOICE, wxCommandEventHandler(main::OnServerIPChanged), NULL, this);
 	this->Bind(wxEVT_CLOSE_WINDOW, &main::OnClose, this); // 关闭窗口事件
 	loadSettings("settings.conf"); // 读取配置文件
 }
@@ -280,7 +287,7 @@ void main::OnCheckUpdateButtonClick(wxCommandEvent& event)
 		wxMessageBox(_("版本检查程序Version.exe不存在"), _("错误"), wxOK | wxICON_ERROR);
 		return;
 	}
-    std::string version = "1.1"; // 当前版本号
+    std::string version = "1.2"; // 当前版本号
     std::string command = "Version.exe " + version;
     system(command.c_str());
     
@@ -390,7 +397,7 @@ void main::TableStatus(int row, bool success)
 
 void main::OnVersionClick(wxMouseEvent& event)
 {
-	wxMessageBox(_("1.1更新：\n- 修复了异常情况不能正常重传的bug\n- 传输使用非阻塞模式和Select方法，提升了性能\n- 表格现在可以动态更新行数\n- 优化计时器逻辑\n更新计划：\n- 动态调整超时时间，并且可以手动设置\n- 减少冗余ACK的发送"), _("更新信息"), wxOK | wxICON_INFORMATION, this);
+	wxMessageBox(_("1.2更新：\n- 添加选择网络接口功能\n- 优化套接字绑定失败错误信息\n更新计划：\n- 动态调整超时时间，并且可以手动设置\n- 减少冗余ACK的发送"), _("更新信息"), wxOK | wxICON_INFORMATION, this);
 }
 
 void main::OnMouseEnter(wxMouseEvent& event)
@@ -446,6 +453,17 @@ void main::OnClose(wxCloseEvent& event)
 		}
 	}
 	// 如果用户选择取消，则不执行任何操作
+}
+
+void main::OnServerIPChanged(wxCommandEvent& event)
+{
+	if (running) {
+		wxMessageBox("服务器启动时禁止更改此选项，请先关闭服务器。", "非法操作", wxICON_ERROR);
+		choice_server_ip->SetSelection(selectedInterfaceIdx);
+	}
+	else {
+		selectedInterfaceIdx = choice_server_ip->GetSelection(); // 获取选择的网卡
+	}
 }
 
 

@@ -1,7 +1,10 @@
 #pragma once
 #include <chrono>
 #include <ctime>
+#include <vector>
 #include <string>
+#include <winsock2.h>
+#include <ws2tcpip.h> // Windows套接字库
 
 // 计时器
 class Timer {
@@ -28,5 +31,8 @@ std::string path_join(const std::string& path1, const std::string& path2);
 void OpenConsoleWindow();
 void CloseConsoleWindow();
 
+// 获取网卡信息
+std::vector<std::pair<std::string, std::string>> GetNetworkInterfaces();
 
-
+// 绑定套接字到特定的网络接口
+std::string BindSocketToInterface(SOCKET* sock, bool isIPV6, const std::string& ipAddress,int PORT);

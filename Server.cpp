@@ -1,8 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
+#define WIN32_LEAN_AND_MEAN // 从 Windows 头文件中排除极少使用的内容
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <sstream>
+#include <sstream> // 字符串流
 #include <winsock2.h> // Windows套接字库
 #include <ws2tcpip.h> // Windows套接字库
 #include <chrono>  // 时间库
@@ -79,7 +80,7 @@ public:
 	char data[BUFFER_SIZE - 4]; // 数据
 
 	TFTPHeader(uint16_t op = 0, uint16_t blockOrError = 0) : opcode(op), blockOrErrorCode(blockOrError) {
-		memset(data, 0, sizeof(data));
+		memset(data, 0, sizeof(data)); 
 	}
 
 	void setData(const std::string& str) {
@@ -138,18 +139,16 @@ public:
 			return;
 		}
 
-		serverAddr.sin_family = AF_INET;
-		serverAddr.sin_port = htons(PORT);
-		serverAddr.sin_addr.s_addr = INADDR_ANY;
-
-		if (bind(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-			logMessage("绑定失败，请检查"+ std::to_string(PORT) + "端口是否已被占用", sockaddr_in{}, 1);
+		// 绑定监听套接字
+		std::string BindResult = BindSocketToInterface(&sock, interfaces[selectedInterfaceIdx].second.find(":") != std::string::npos, interfaces[selectedInterfaceIdx].second , PORT); // 绑定到特定的网络接口，端口为指定值
+		if (BindResult != "OK") {
+			logMessage("监听套接字绑定失败:"+ BindResult, sockaddr_in{}, 1);
 			closesocket(sock);
 			WSACleanup();
 			return;
 		}
 
-		logMessage("TFTP服务器启动,正在监听"+ std::to_string(PORT) +"端口...", sockaddr_in{}, 2);
+		logMessage("服务器启动成功,正在监听"+ interfaces[selectedInterfaceIdx].second + " : " + std::to_string(PORT), sockaddr_in{}, 2);
 
 
 		ServerRootDirectory = mainFrame->server_dir->GetPath().ToStdString();
@@ -180,10 +179,11 @@ public:
 		logMessage("服务器已关闭", sockaddr_in{}, 2);
 		if (is_console_mode) {
 			is_console_mode = false;
-			running = false;
 		}
+		running = false;
 		closesocket(sock);
 		WSACleanup();
+		g_mainFrame->Server_Switch->SetSelection(1);
 	}
 
 	// 监听套接字运行时
@@ -299,15 +299,12 @@ private:
 		u_long blockmode = 1;
 		ioctlsocket(dataSock, FIONBIO, &blockmode);
 
-		// 绑定传输套接字到动态分配的端口
-		sockaddr_in dataAddr = {};
-		dataAddr.sin_family = AF_INET;
-		dataAddr.sin_port = 0; // 动态分配，端口设置为0
-		dataAddr.sin_addr.s_addr = INADDR_ANY;
-		if (bind(dataSock, (sockaddr*)&dataAddr, sizeof(dataAddr)) == SOCKET_ERROR) {
-			logMessage("绑定数据传输套接字失败", clientAddr, 1);
-			closesocket(dataSock);
-			currentThreadCount--;
+		// 绑定传输套接字
+		std::string BindResult = BindSocketToInterface(&dataSock, interfaces[selectedInterfaceIdx].second.find(":") != std::string::npos , interfaces[selectedInterfaceIdx].second , 0);// 绑定到特定的网络接口，端口随机
+		if (BindResult != "OK") {
+			logMessage("RQQ传输套接字绑定失败:" + BindResult, sockaddr_in{}, 1);
+			closesocket(sock);
+			WSACleanup();
 			return;
 		}
 
@@ -520,15 +517,12 @@ private:
 		u_long blockmode = 1;
 		ioctlsocket(dataSock, FIONBIO, &blockmode);
 
-		// 绑定到动态分配的端口
-		sockaddr_in dataAddr = {};
-		dataAddr.sin_family = AF_INET;
-		dataAddr.sin_port = 0; // 动态分配端口
-		dataAddr.sin_addr.s_addr = INADDR_ANY;
-		if (bind(dataSock, (sockaddr*)&dataAddr, sizeof(dataAddr)) == SOCKET_ERROR) {
-			logMessage("绑定数据传输套接字失败", clientAddr, 1);
-			closesocket(dataSock);
-			currentThreadCount--;
+		// 绑定传输套接字
+		std::string BindResult = BindSocketToInterface(&dataSock, interfaces[selectedInterfaceIdx].second.find(":") != std::string::npos, interfaces[selectedInterfaceIdx].second, 0);// 绑定到特定的网络接口，端口随机
+		if (BindResult != "OK") {
+			logMessage("WRQ传输套接字绑定失败:" + BindResult, sockaddr_in{}, 1);
+			closesocket(sock);
+			WSACleanup();
 			return;
 		}
 
@@ -541,17 +535,17 @@ private:
 
 
 		// 文件写操作
+		std::ifstream existingFile(filePath);
 		std::ofstream file(filePath, mode == "netascii" ? std::ios::out : std::ios::binary);
-		if (!file.is_open()) {
+		if (!file.is_open() || existingFile) {
 			// 检查文件是否已存在
-			std::ifstream existingFile(filePath);
 			if (existingFile) {
 				sendError(clientAddr, 6, "File already exists");
 				logMessage("客户端尝试写入一个已存在的文件：" + filename, clientAddr, 1);
 			}
 			else {
 				sendError(clientAddr, 2, "Cannot create file");
-				logMessage("服务器无法创建文件，请使用管理员权限启动服务器", clientAddr, 1);
+				logMessage("无法写入文件，请检查权限或者线程冲突", clientAddr, 1);
 			}
 			closesocket(dataSock); // 关闭传输套接字
 			currentThreadCount--;
