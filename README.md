@@ -4,7 +4,7 @@
 
 主页面：
 
-![UI-main](.\assets\UI-main.png)
+![主页面](.\assets\UI-main.png)
 
 设置页面：
 
