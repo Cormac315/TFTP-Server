@@ -2,6 +2,14 @@
 
 一个基于C++的Socket编程实现的TFTP服务器，支持文件上传下载、图形界面、多线程传输等功能。
 
+主页面：
+
+![UI-main](.\assets\UI-main.png)
+
+设置页面：
+
+<img src=".\assets\UI-settings.png" alt="UI-settings.png" style="zoom: 67%;" />
+
 ## 功能特性
 
 - 严格遵循TFTP协议标准实现
