@@ -4,7 +4,7 @@
 
 主页面：
 
-![主页面](.\assets\UI-main.png)
+<img src=".\assets\UI-main.png" alt="主页面" style="zoom:80%;" />
 
 设置页面：
 
